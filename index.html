@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Спортивная Карта Бишкека</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #ef4444;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        #support-banner {
+            position: absolute;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card-bg);
+            padding: 0.5rem 1.25rem;
+            border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            width: 90%;
+            max-width: 450px;
+            display: none;
+        }
+
+        #support-banner span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .map-hint {
+            position: absolute;
+            top: 5.5rem; 
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(37, 99, 235, 0.95);
+            color: white;
+            padding: 0.5rem 1rem 0.5rem 1.25rem;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: max-content;
+            max-width: 90%;
+            animation: fadeIn 0.5s ease-out;
+            display: none;
+        }
+
+        .map-hint span {
+            line-height: 1.3;
+        }
+
+        .btn-close-hint {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+            transition: background 0.2s;
+        }
+
+        .btn-close-hint:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -10px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        #auth-screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            backdrop-filter: blur(8px);
+        }
+
+        .auth-card h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .auth-card p {
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-google {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            background-color: white;
+            color: var(--text);
+            border: 1px solid #e2e8f0;
+            padding: 0.7rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-bottom: 1.25rem;
+        }
+
+        .btn-google:hover {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+        }
+
+        .btn-google:disabled {
+            opacity: 0.6;
+            cursor: default;
+            transform: none;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-light);
+            font-size: 0.8rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        .auth-hint {
+            margin-top: 0.25rem;
+            font-size: 0.78rem;
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        #app-screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .user-badge {
+            position: absolute;
+            bottom: 1.5rem;
+            right: 1rem;
+            background: var(--card-bg);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+
+        .user-badge img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .btn-logout {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15);
+            animation: scaleUp 0.2s ease-out;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        @keyframes scaleUp {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal h2 {
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.35rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #e2e8f0;
+            border-radius: calc(var(--radius) - 4px);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+        }
+
+        .hint-text {
+            display: block;
+            margin-top: 0.3rem;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            line-height: 1.2;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.25rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.25rem;
+        }
+
+        .btn-secondary {
+            background-color: #f1f5f9;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: var(--radius);
+        }
+        
+        .info-window {
+            padding: 0.2rem;
+            max-width: 220px;
+        }
+
+        .info-window h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            font-family: inherit;
+        }
+
+        .info-window .tag {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 20px;
+            margin-bottom: 0.75rem;
+        }
+
+        .tag-free { background: #dcfce7; color: #15803d; }
+        .tag-paid { background: #fee2e2; color: #b91c1c; }
+
+        .info-window p {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+
+        .btn-delete {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        .leaflet-div-icon {
+            background: transparent;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen">
+        <div class="auth-card">
+            <h1>Спортивный Бишкек</h1>
+            <p>Находи компании для игры в футбол, баскетбол или совместных пробежек.</p>
+
+            <button class="btn-google" id="btn-google-login">
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92a8.78 8.78 0 0 0 2.68-6.62z"/>
+                    <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.55-1.85.87-3.04.87a5.26 5.26 0 0 1-4.94-3.63H1.07v2.33A9 9 0 0 0 9 18z"/>
+                    <path fill="#FBBC05" d="M4.06 10.8a5.4 5.4 0 0 1 0-3.6V4.87H1.07a9 9 0 0 0 0 8.26z"/>
+                    <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.59 8.59 0 0 0 9 0 9 9 0 0 0 1.07 4.87L4.06 7.2A5.26 5.26 0 0 1 9 3.58z"/>
+                </svg>
+                Войти через Google
+            </button>
+            <div id="google-error" style="color:#ef4444;font-size:0.85rem;margin-bottom:1rem;display:none;"></div>
+            <div class="auth-hint" style="margin-bottom:1.25rem;">Если не работает вход через Google, зайдите через Email.</div>
+
+            <div class="auth-divider"><span>или</span></div>
+
+            <div id="auth-tabs" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;">
+                <button id="tab-login" onclick="switchTab('login')" style="flex:1;padding:0.5rem;border:2px solid #2563eb;border-radius:10px;background:#2563eb;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;">Войти</button>
+                <button id="tab-register" onclick="switchTab('register')" style="flex:1;padding:0.5rem;border:2px solid #e2e8f0;border-radius:10px;background:white;color:#64748b;font-weight:700;cursor:pointer;font-size:0.95rem;">Регистрация</button>
+            </div>
+
+            <div id="form-login">
+                <input type="email" id="login-email" placeholder="Email" style="width:100%;padding:0.7rem;border:1px solid #e2e8f0;border-radius:10px;font-size:1rem;margin-bottom:0.75rem;outline:none;">
+                <input type="password" id="login-password" placeholder="Пароль" style="width:100%;padding:0.7rem;border:1px solid #e2e8f0;border-radius:10px;font-size:1rem;margin-bottom:1rem;outline:none;">
+                <button class="btn" id="btn-login">Войти</button>
+                <div id="login-error" style="color:#ef4444;font-size:0.85rem;margin-top:0.75rem;display:none;"></div>
+            </div>
+
+            <div id="form-register" style="display:none;">
+                <input type="text" id="reg-name" placeholder="Ваше имя / Никнейм" style="width:100%;padding:0.7rem;border:1px solid #e2e8f0;border-radius:10px;font-size:1rem;margin-bottom:0.75rem;outline:none;">
+                <input type="email" id="reg-email" placeholder="Email" style="width:100%;padding:0.7rem;border:1px solid #e2e8f0;border-radius:10px;font-size:1rem;margin-bottom:0.75rem;outline:none;">
+                <input type="password" id="reg-password" placeholder="Пароль (минимум 6 символов)" style="width:100%;padding:0.7rem;border:1px solid #e2e8f0;border-radius:10px;font-size:1rem;margin-bottom:1rem;outline:none;">
+                <button class="btn" id="btn-register">Зарегистрироваться</button>
+                <div id="register-error" style="color:#ef4444;font-size:0.85rem;margin-top:0.75rem;display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="support-banner">
+        Поддержка создателя: буду благодарен и одному сому<br>
+        <span>700711771 Обанк/Мбанк (Арек.Д)</span>
+    </div>
+
+    <div id="app-screen">
+        <div id="map-hint" class="map-hint">
+            <span>Для добавления мероприятия нажмите на свободное место на карте</span>
+            <button class="btn-close-hint" id="btn-close-hint">&times;</button>
+        </div>
+        
+        <div class="user-badge">
+            <div style="width:32px;height:32px;border-radius:50%;background:#2563eb;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;" id="user-avatar-letter">?</div>
+            <div>
+                <span id="user-name" style="display:block; font-weight:600; font-size:0.9rem;"></span>
+                <button class="btn-logout" id="btn-logout">Выйти</button>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <h2>Создать событие</h2>
+            <form id="event-form">
+                
+                <div class="form-group">
+                    <label for="event-author">Имя организатора (видимое всем)</label>
+                    <input type="text" id="event-author" class="form-control" placeholder="Например: Азамат или Никнейм" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="event-type">Вид спорта</label>
+                    <select id="event-type" class="form-control">
+                        <option value="football">Футбол ⚽</option>
+                        <option value="basketball">Баскетбол 🏀</option>
+                        <option value="volleyball">Волейбол 🏐</option>
+                        <option value="running">Бег 🏃</option>
+                        <option value="other">Другое мероприятие ⛳</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="custom-emoji-group" style="display: none;">
+                    <label for="custom-emoji">Стикер мероприятия</label>
+                    <input type="text" id="custom-emoji" class="form-control" maxlength="3" placeholder="Пример: 🚴">
+                    <span class="hint-text">Введите сюда только стикер описывающий ваше мероприятие, этот стикер будет виден на карте. (Максимум 3 символа)</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="event-desc">Описание встречи</label>
+                    <textarea id="event-desc" class="form-control" rows="2" placeholder="Например: Собираемся на коробке, не хватает 3 человек..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Вход</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="event-price" value="free" checked> Бесплатный</label>
+                        <label><input type="radio" name="event-price" value="paid"> Платный</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="event-duration">Актуальность</label>
+                    <select id="event-duration" class="form-control">
+                        <option value="1">1 день</option>
+                        <option value="3">3 дня</option>
+                        <option value="5">5 дней</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel">Отмена</button>
+                    <button type="submit" class="btn">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9eGvN3gyhSRs8prT5KXHn2PghFFWsjvc",
+            authDomain: "appkkk-31782.firebaseapp.com",
+            projectId: "appkkk-31782",
+            storageBucket: "appkkk-31782.firebasestorage.app",
+            messagingSenderId: "163238986057",
+            appId: "1:163238986057:web:fbcbc3657d0d611f9bda98",
+            measurementId: "G-70W0V2KXJ7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        let map = null;
+        let currentUser = null;
+        let activeClickedCoords = null;
+        let markersArray = [];
+
+        const sportIcons = { football: "⚽", basketball: "🏀", volleyball: "🏐", running: "🏃" };
+        const sportNames = { football: "Футбол", basketball: "Баскетбол", volleyball: "Волейбол", running: "Бег" };
+
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const supportBanner = document.getElementById('support-banner');
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegister = document.getElementById('btn-register');
+        const btnGoogleLogin = document.getElementById('btn-google-login');
+        const btnLogout = document.getElementById('btn-logout');
+        const userAvatarLetter = document.getElementById('user-avatar-letter');
+        const userName = document.getElementById('user-name');
+
+        window.switchTab = (tab) => {
+            const isLogin = tab === 'login';
+            document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
+            document.getElementById('form-register').style.display = isLogin ? 'none' : 'block';
+            document.getElementById('tab-login').style.background = isLogin ? '#2563eb' : 'white';
+            document.getElementById('tab-login').style.color = isLogin ? 'white' : '#64748b';
+            document.getElementById('tab-login').style.borderColor = isLogin ? '#2563eb' : '#e2e8f0';
+            document.getElementById('tab-register').style.background = isLogin ? 'white' : '#2563eb';
+            document.getElementById('tab-register').style.color = isLogin ? '#64748b' : 'white';
+            document.getElementById('tab-register').style.borderColor = isLogin ? '#e2e8f0' : '#2563eb';
+        };
+        
+        const modalOverlay = document.getElementById('modal-overlay');
+        const eventForm = document.getElementById('event-form');
+        const btnCancel = document.getElementById('btn-cancel');
+        const eventAuthorInput = document.getElementById('event-author');
+        const eventTypeSelect = document.getElementById('event-type');
+        const customEmojiGroup = document.getElementById('custom-emoji-group');
+        const customEmojiInput = document.getElementById('custom-emoji');
+
+        const mapHint = document.getElementById('map-hint');
+        const btnCloseHint = document.getElementById('btn-close-hint');
+
+        btnCloseHint.addEventListener('click', () => {
+            mapHint.style.display = 'none';
+        });
+
+        eventTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'other') {
+                customEmojiGroup.style.display = 'block';
+                customEmojiInput.required = true;
+            } else {
+                customEmojiGroup.style.display = 'none';
+                customEmojiInput.required = false;
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                const displayName = user.displayName || user.email.split('@')[0];
+                userName.textContent = displayName;
+                userAvatarLetter.textContent = displayName.charAt(0).toUpperCase();
+                authScreen.style.display = 'none';
+                appScreen.style.display = 'block';
+                supportBanner.style.display = 'block';
+                mapHint.style.display = 'flex';
+                if (!map) initMap();
+            } else {
+                currentUser = null;
+                authScreen.style.display = 'flex';
+                appScreen.style.display = 'none';
+                supportBanner.style.display = 'none';
+                mapHint.style.display = 'none';
+            }
+        });
+
+        btnLogin.addEventListener('click', async () => {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errorEl = document.getElementById('login-error');
+            errorEl.style.display = 'none';
+            if (!email || !password) { errorEl.textContent = 'Заполните все поля.'; errorEl.style.display = 'block'; return; }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (err) {
+                const msgs = {
+                    'auth/user-not-found': 'Пользователь не найден.',
+                    'auth/wrong-password': 'Неверный пароль.',
+                    'auth/invalid-email': 'Неверный формат email.',
+                    'auth/invalid-credential': 'Неверный email или пароль.',
+                };
+                errorEl.textContent = msgs[err.code] || 'Ошибка входа. Попробуйте ещё раз.';
+                errorEl.style.display = 'block';
+            }
+        });
+
+        btnRegister.addEventListener('click', async () => {
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const errorEl = document.getElementById('register-error');
+            errorEl.style.display = 'none';
+            if (!name || !email || !password) { errorEl.textContent = 'Заполните все поля.'; errorEl.style.display = 'block'; return; }
+            if (password.length < 6) { errorEl.textContent = 'Пароль минимум 6 символов.'; errorEl.style.display = 'block'; return; }
+            try {
+                const result = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(result.user, { displayName: name });
+            } catch (err) {
+                const msgs = {
+                    'auth/email-already-in-use': 'Этот email уже зарегистрирован.',
+                    'auth/invalid-email': 'Неверный формат email.',
+                    'auth/weak-password': 'Пароль слишком простой.',
+                };
+                errorEl.textContent = msgs[err.code] || 'Ошибка регистрации. Попробуйте ещё раз.';
+                errorEl.style.display = 'block';
+            }
+        });
+
+        btnLogout.addEventListener('click', () => signOut(auth));
+
+        // Показываем "загрузку" сразу, если мы вернулись от Google (страница перезагрузилась)
+        if (sessionStorage.getItem('googleSignInPending')) {
+            btnGoogleLogin.disabled = true;
+            btnGoogleLogin.textContent = 'Завершаем вход...';
+        }
+
+        // Обрабатываем результат входа через Google после возврата с redirect
+        getRedirectResult(auth)
+            .catch((err) => {
+                console.error('Ошибка входа через Google:', err);
+                const errorEl = document.getElementById('google-error');
+                const msgs = {
+                    'auth/unauthorized-domain': 'Этот домен не авторизован для входа через Google.',
+                    'auth/account-exists-with-different-credential': 'Этот email уже зарегистрирован другим способом. Войдите через Email.',
+                    'auth/credential-already-in-use': 'Этот аккаунт Google уже привязан к другому пользователю.',
+                    'auth/operation-not-supported-in-this-environment': 'Этот браузер не поддерживает вход через Google. Попробуйте через Email.',
+                };
+                errorEl.textContent = msgs[err.code] || 'Не удалось войти через Google. Попробуйте войти через Email.';
+                errorEl.style.display = 'block';
+            })
+            .finally(() => {
+                sessionStorage.removeItem('googleSignInPending');
+                btnGoogleLogin.disabled = false;
+                btnGoogleLogin.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92a8.78 8.78 0 0 0 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.55-1.85.87-3.04.87a5.26 5.26 0 0 1-4.94-3.63H1.07v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M4.06 10.8a5.4 5.4 0 0 1 0-3.6V4.87H1.07a9 9 0 0 0 0 8.26z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.59 8.59 0 0 0 9 0 9 9 0 0 0 1.07 4.87L4.06 7.2A5.26 5.26 0 0 1 9 3.58z"/></svg> Войти через Google`;
+            });
+
+        btnGoogleLogin.addEventListener('click', async () => {
+            const errorEl = document.getElementById('google-error');
+            errorEl.style.display = 'none';
+            btnGoogleLogin.disabled = true;
+            btnGoogleLogin.textContent = 'Переходим на страницу Google...';
+            try {
+                sessionStorage.setItem('googleSignInPending', '1');
+                await signInWithRedirect(auth, googleProvider);
+                // После вызова страница перенаправляется на Google — код ниже обычно не выполняется
+            } catch (err) {
+                console.error('Ошибка входа через Google:', err);
+                sessionStorage.removeItem('googleSignInPending');
+                errorEl.textContent = 'Не удалось начать вход через Google. Попробуйте войти через Email.';
+                errorEl.style.display = 'block';
+                btnGoogleLogin.disabled = false;
+                btnGoogleLogin.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92a8.78 8.78 0 0 0 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.55-1.85.87-3.04.87a5.26 5.26 0 0 1-4.94-3.63H1.07v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M4.06 10.8a5.4 5.4 0 0 1 0-3.6V4.87H1.07a9 9 0 0 0 0 8.26z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A8.59 8.59 0 0 0 9 0 9 9 0 0 0 1.07 4.87L4.06 7.2A5.26 5.26 0 0 1 9 3.58z"/></svg> Войти через Google`;
+            }
+        });
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([42.8746, 74.5698], 13);
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            map.on('click', (e) => {
+                activeClickedCoords = { lat: e.latlng.lat, lng: e.latlng.lng };
+                
+                if (currentUser && !eventAuthorInput.value) {
+                    eventAuthorInput.value = currentUser.displayName || currentUser.email.split('@')[0];
+                }
+
+                modalOverlay.style.display = 'flex';
+            });
+
+            listenToEvents();
+        }
+
+        function closeAndResetModal() {
+            modalOverlay.style.display = 'none';
+            eventForm.reset();
+            customEmojiGroup.style.display = 'none'; 
+            customEmojiInput.required = false;
+        }
+
+        btnCancel.addEventListener('click', closeAndResetModal);
+
+        eventForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!activeClickedCoords || !currentUser) return;
+
+            const type = eventTypeSelect.value;
+            const description = document.getElementById('event-desc').value;
+            const priceType = document.querySelector('input[name="event-price"]:checked').value;
+            const durationDays = parseInt(document.getElementById('event-duration').value);
+            const authorName = eventAuthorInput.value.trim() || "Аноним"; 
+
+            let customEmoji = null;
+            if (type === 'other') {
+                customEmoji = customEmojiInput.value.trim() || "📍"; 
+            }
+
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+            try {
+                await addDoc(collection(db, "events"), {
+                    type, 
+                    description, 
+                    priceType,
+                    customEmoji,
+                    lat: activeClickedCoords.lat,
+                    lng: activeClickedCoords.lng,
+                    creatorId: currentUser.uid,
+                    creatorName: authorName, 
+                    createdAt: serverTimestamp(),
+                    expiresAt: expiresAt
+                              });
+                closeAndResetModal();
+            } catch (err) {
+                console.error("Ошибка при создании события:", err);
+                alert("Не удалось создать событие. Попробуйте ещё раз.");
+            }
+        });
+
+        function listenToEvents() {
+            const now = new Date();
+            onSnapshot(collection(db, "events"), (snapshot) => {
+                markersArray.forEach(m => map.removeLayer(m));
+                markersArray = [];
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
+
+                    if (expiresAt < now) return;
+
+                    const emoji = data.type === 'other' ? (data.customEmoji || "📍") : (sportIcons[data.type] || "📍");
+                    const sportLabel = data.type === 'other' ? (data.customEmoji || "Другое") : (sportNames[data.type] || data.type);
+                    const priceTag = data.priceType === 'free'
+                        ? '<span class="tag tag-free">Бесплатно</span>'
+                        : '<span class="tag tag-paid">Платно</span>';
+
+                    const icon = L.divIcon({
+                        html: `<div style="font-size:2rem;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">${emoji}</div>`,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20],
+                        className: ''
+                    });
+
+                    const isOwner = currentUser && currentUser.uid === data.creatorId;
+                    const deleteBtn = isOwner
+                        ? `<button class="btn-delete" onclick="window._deleteEvent('${docSnap.id}')">🗑 Удалить</button>`
+                        : '';
+
+                    const popupContent = `
+                        <div class="info-window">
+                            <h3>${emoji} ${sportLabel}</h3>
+                            ${priceTag}
+                            <p>${data.description}</p>
+                            <p style="font-size:0.8rem;color:#94a3b8;">Организатор: <strong>${data.creatorName || 'Аноним'}</strong></p>
+                            ${deleteBtn}
+                        </div>`;
+
+                    const marker = L.marker([data.lat, data.lng], { icon }).addTo(map);
+                    marker.bindPopup(popupContent);
+                    markersArray.push(marker);
+                });
+            });
+        }
+
+        window._deleteEvent = async (id) => {
+            if (!currentUser) return;
+            if (!confirm("Удалить это событие?")) return;
+            try {
+                await deleteDoc(doc(db, "events", id));
+            } catch (err) {
+                console.error("Ошибка при удалении:", err);
+                alert("Не удалось удалить событие.");
+            }
+        };
+
+    </script>
+</body>
+</html>
