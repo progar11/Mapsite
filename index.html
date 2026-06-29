@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -60,6 +61,33 @@
         #support-banner span {
             color: var(--primary);
             font-weight: 700;
+        }
+
+        /* Подсказка для карты */
+        .map-hint {
+            position: absolute;
+            top: 5.5rem; /* Чуть ниже баннера донатов */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(37, 99, 235, 0.9); /* Фирменный синий цвет с прозрачностью */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            text-align: center;
+            width: 85%;
+            max-width: 380px;
+            pointer-events: none; /* Клик проходит сквозь подсказку на карту */
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -10px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
         }
 
         /* Экран авторизации */
@@ -128,7 +156,7 @@
         #map {
             width: 100%;
             height: 100%;
-            z-index: 1; /* Чтобы не перекрывал UI */
+            z-index: 1;
         }
 
         /* Профиль пользователя в углу */
@@ -289,7 +317,6 @@
             font-weight: 600;
         }
 
-        /* Убираем синюю обводку у кастомных иконок */
         .leaflet-div-icon {
             background: transparent;
             border: none;
@@ -315,6 +342,8 @@
     </div>
 
     <div id="app-screen">
+        <div class="map-hint">Чтобы создать мероприятие, нажмите на любое место на карте</div>
+        
         <div class="user-badge">
             <img id="user-avatar" src="" alt="Avatar">
             <div>
@@ -411,7 +440,7 @@
                 userAvatar.src = user.photoURL || 'https://via.placeholder.com/32';
                 authScreen.style.display = 'none';
                 appScreen.style.display = 'block';
-                supportBanner.style.display = 'block'; // Показываем баннер только авторизованным
+                supportBanner.style.display = 'block';
                 
                 if (!map) initMap();
             } else {
@@ -426,17 +455,14 @@
         btnLogout.addEventListener('click', () => signOut(auth));
 
         function initMap() {
-            // Координаты Бишкека
             map = L.map('map', { zoomControl: false }).setView([42.8746, 74.5698], 13);
-            L.control.zoom({ position: 'bottomleft' }).addTo(map); // Сместил зум, чтобы не мешал баннеру
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-            // Бесплатные тайлы OpenStreetMap
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
             }).addTo(map);
 
-            // Клик по карте
             map.on('click', (e) => {
                 activeClickedCoords = { lat: e.latlng.lat, lng: e.latlng.lng };
                 modalOverlay.style.display = 'flex';
@@ -483,7 +509,6 @@
 
         function listenToEvents() {
             onSnapshot(collection(db, "events"), (snapshot) => {
-                // Очистка старых маркеров Leaflet
                 markersArray.forEach(marker => map.removeLayer(marker));
                 markersArray = [];
 
@@ -502,7 +527,6 @@
         }
 
         function renderMarker(id, data) {
-            // Кастомная иконка-эмодзи вместо стандартного синего пина Leaflet
             const emojiIcon = L.divIcon({
                 html: `<div style="font-size: 28px; text-align:center; filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));">${sportIcons[data.type] || "📍"}</div>`,
                 className: 'leaflet-div-icon',
@@ -529,7 +553,6 @@
 
             marker.bindPopup(infoContent);
 
-            // Обработка удаления после открытия попапа
             marker.on('popupopen', () => {
                 const deleteBtn = document.getElementById(`btn-del-${id}`);
                 if (deleteBtn) {
@@ -537,27 +560,4 @@
                         if (confirm("Точно удалить?")) {
                             try {
                                 await deleteDoc(doc(db, "events", id));
-                                map.closePopup();
-                            } catch (err) {
-                                alert("Нет прав на удаление.");
-                            }
-                        }
-                    });
-                }
-            });
-
-            markersArray.push(marker);
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-    </script>
-</body>
-</html>
+    
